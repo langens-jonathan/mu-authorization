@@ -128,6 +128,7 @@ defmodule SparqlServer.Router.HandlerSupport do
           |> ALog.di("New parsed forms")
           |> Enum.map(&SparqlClient.execute_parsed(&1, request: conn, query_type: query_type))
           |> List.first()
+          |> format_response_string()
           |> Poison.encode!()
 
         post_processing.()
@@ -138,6 +139,33 @@ defmodule SparqlServer.Router.HandlerSupport do
         encoded_response_string = Poison.encode!(%{ errors: [%{status: "403", title: reason}]})
         {conn, {403, encoded_response_string}, new_template_local_store}
     end
+  end
+
+  def format_response_string(nil) do
+    %{
+      "head" => %{
+          "link" => [],
+          "vars" => [
+              "callret-0"
+          ]
+      },
+      "results" => %{
+          "distinct" => false,
+          "ordered" => true,
+          "bindings" => [
+              %{
+                  "callret-0" => %{
+                      "type" => "literal",
+                      "value" => "0 triples inserted or deleted"
+                  }
+              }
+          ]
+        }
+    }
+  end
+
+  def format_response_string(encoded_response) do
+    encoded_response
   end
 
   def wrap_query_in_toplevel(%InterpreterTerms.SymbolMatch{symbol: :Sparql} = matched) do
@@ -309,7 +337,7 @@ defmodule SparqlServer.Router.HandlerSupport do
 
           all_triples_written?
       end)
-        
+
       if(all_manipulations_complete) do
         enriched_manipulations
       else
